@@ -201,7 +201,7 @@ server()
   if (::getsockopt(sockfd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen) < 0) {
     throw std::system_error(errno, std::system_category(), "getsockopt(SOL_XDP, XDP_MMAP_OFFSETS)");
   }
-  void* fill_ring_mmap = ::mmap(0,
+  void* fill_ring_mmap = ::mmap(nullptr,
                                 off.fr.desc + fill_queue_size * sizeof(uint64_t),
                                 PROT_READ | PROT_WRITE,
                                 MAP_SHARED | MAP_POPULATE,
@@ -216,7 +216,7 @@ server()
   fill_ring.consumer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(fill_ring_mmap) + off.fr.consumer);
   fill_ring.mask = fill_queue_size - 1;
 
-  void* completion_ring_mmap = ::mmap(0,
+  void* completion_ring_mmap = ::mmap(nullptr,
                                       off.fr.desc + completion_queue_size * sizeof(uint64_t),
                                       PROT_READ | PROT_WRITE,
                                       MAP_SHARED | MAP_POPULATE,
