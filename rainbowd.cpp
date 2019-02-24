@@ -226,9 +226,9 @@ server()
     throw std::system_error(errno, std::system_category(), "mmap(XDP_UMEM_PGOFF_COMPLETION_RING)");
   }
   xdp_umem_ring completion_ring;
-  completion_ring.desc = reinterpret_cast<uint64_t*>(reinterpret_cast<uint64_t>(completion_ring_mmap) + off.fr.desc);
-  completion_ring.producer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(completion_ring_mmap) + off.fr.producer);
-  completion_ring.consumer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(completion_ring_mmap) + off.fr.consumer);
+  completion_ring.desc = reinterpret_cast<uint64_t*>(reinterpret_cast<uint64_t>(completion_ring_mmap) + off.cr.desc);
+  completion_ring.producer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(completion_ring_mmap) + off.cr.producer);
+  completion_ring.consumer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(completion_ring_mmap) + off.cr.consumer);
   completion_ring.mask = completion_queue_size - 1;
 
   void* rx_map = ::mmap(nullptr,
