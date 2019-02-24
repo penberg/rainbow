@@ -52,73 +52,23 @@ struct xdp_ring
 
 using Error = std::string;
 
-static tl::expected<void, Error>
-process_message(const Packet& packet)
+using OnPacketFn = std::function<tl::expected<void, Error>(const Packet& packet)>;
+
+class Reactor {
+  OnPacketFn _fn;
+public:
+  void on_packet(OnPacketFn&& fn);
+  void run();
+};
+
+void
+Reactor::on_packet(OnPacketFn&& fn)
 {
-  for (size_t i = 0; i < packet.len; i++) {
-    unsigned char ch = packet.data[i];
-    printf("%02x ", ch);
-  }
-  printf("  |");
-  for (size_t i = 0; i < packet.len; i++) {
-    char ch = packet.data[i];
-    if (std::isprint(ch)) {
-      printf("%c", ch);
-    } else {
-      printf(".");
-    }
-  }
-  printf("|\n");
-  return {};
+  _fn = std::move(fn);
 }
 
-static tl::expected<void, Error>
-process_ipv4_udp_packet(const Packet& packet)
-{
-  auto* udph = reinterpret_cast<const ::udphdr*>(packet.data);
-  if (packet.len < sizeof(*udph)) {
-    return tl::unexpected{"Packet is too short. Expected at least " + std::to_string(sizeof(*udph)) + ", but was: " + std::to_string(packet.len)};
-  }
-  std::cout << "UDP/IPv4 packet: " << ::htons(udph->len) << " bytes" << std::endl;
-  return process_message(packet.trim_front(sizeof(*udph)));
-}
-
-static tl::expected<void, Error>
-process_ipv4_packet(const Packet& packet)
-{
-  auto* iph = reinterpret_cast<const ::iphdr*>(packet.data);
-  switch (iph->protocol) {
-    case IPPROTO_UDP:
-      return process_ipv4_udp_packet(packet.trim_front(sizeof(*iph)));
-    case IPPROTO_TCP:
-      return tl::unexpected{std::string{"TCP/IPv4 is not supported"}};
-    default:
-      return tl::unexpected{"Unsupported IPv4 protocol: " + std::to_string(iph->protocol)};
-  }
-  return {};
-}
-
-static tl::expected<void, Error>
-process_packet(const Packet& packet)
-{
-  auto* eth = reinterpret_cast<const ::ethhdr*>(packet.data);
-  auto offset = sizeof(*eth);
-  if (offset >= packet.len) {
-    return tl::unexpected{"Packet is too short. Expected at least " + std::to_string(offset) + ", but was: " + std::to_string(packet.len)};
-  }
-  auto proto = ::htons(eth->h_proto);
-  switch (proto) {
-    case ETH_P_IP:
-      return process_ipv4_packet(packet.trim_front(sizeof(*eth)));
-    case ETH_P_IPV6:
-      return tl::unexpected{std::string{"IPv6 is not supported"}};
-    default:
-      return tl::unexpected{"Unsupported EtherType: " + std::to_string(proto)};
-  }
-}
-
-static void
-server()
+void
+Reactor::run()
 {
   int err;
   auto ifindex = if_nametoindex("lo");
@@ -254,7 +204,7 @@ server()
       std::atomic_thread_fence(std::memory_order_acquire);
       struct xdp_desc desc = rx_ring.desc[(*rx_ring.consumer)++ & rx_ring.mask];
       Packet packet{reinterpret_cast<const char*>(reinterpret_cast<uint64_t>(bufs) + desc.addr), desc.len};
-      auto ret = process_packet(packet);
+      auto ret = _fn(packet);
       if (!ret) {
         std::cout << "warning: Packet processing error: " << ret.error() << std::endl;
       }
@@ -267,11 +217,78 @@ server()
 
 }
 
+static tl::expected<void, rainbow::Error>
+process_message(const rainbow::Packet& packet)
+{
+  for (size_t i = 0; i < packet.len; i++) {
+    unsigned char ch = packet.data[i];
+    printf("%02x ", ch);
+  }
+  printf("  |");
+  for (size_t i = 0; i < packet.len; i++) {
+    char ch = packet.data[i];
+    if (std::isprint(ch)) {
+      printf("%c", ch);
+    } else {
+      printf(".");
+    }
+  }
+  printf("|\n");
+  return {};
+}
+
+static tl::expected<void, rainbow::Error>
+process_ipv4_udp_packet(const rainbow::Packet& packet)
+{
+  auto* udph = reinterpret_cast<const ::udphdr*>(packet.data);
+  if (packet.len < sizeof(*udph)) {
+    return tl::unexpected{"Packet is too short. Expected at least " + std::to_string(sizeof(*udph)) + ", but was: " + std::to_string(packet.len)};
+  }
+  std::cout << "UDP/IPv4 packet: " << ::htons(udph->len) << " bytes" << std::endl;
+  return process_message(packet.trim_front(sizeof(*udph)));
+}
+
+static tl::expected<void, rainbow::Error>
+process_ipv4_packet(const rainbow::Packet& packet)
+{
+  auto* iph = reinterpret_cast<const ::iphdr*>(packet.data);
+  switch (iph->protocol) {
+    case IPPROTO_UDP:
+      return process_ipv4_udp_packet(packet.trim_front(sizeof(*iph)));
+    case IPPROTO_TCP:
+      return tl::unexpected{std::string{"TCP/IPv4 is not supported"}};
+    default:
+      return tl::unexpected{"Unsupported IPv4 protocol: " + std::to_string(iph->protocol)};
+  }
+  return {};
+}
+
+static tl::expected<void, rainbow::Error>
+process_packet(const rainbow::Packet& packet)
+{
+  auto* eth = reinterpret_cast<const ::ethhdr*>(packet.data);
+  auto offset = sizeof(*eth);
+  if (offset >= packet.len) {
+    return tl::unexpected{"Packet is too short. Expected at least " + std::to_string(offset) + ", but was: " + std::to_string(packet.len)};
+  }
+  auto proto = ::htons(eth->h_proto);
+  switch (proto) {
+    case ETH_P_IP:
+      return process_ipv4_packet(packet.trim_front(sizeof(*eth)));
+    case ETH_P_IPV6:
+      return tl::unexpected{std::string{"IPv6 is not supported"}};
+    default:
+      return tl::unexpected{"Unsupported EtherType: " + std::to_string(proto)};
+  }
+}
+
 int
 main()
 {
   try {
-    rainbow::server();
+    rainbow::Reactor reactor;
+    reactor.on_packet(process_packet);
+    reactor.run();
   } catch (const std::exception& ex) {
     std::cerr << "error: " << ex.what() << std::endl;
   }
