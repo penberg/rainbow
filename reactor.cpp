@@ -72,7 +72,7 @@ Reactor::run()
   if (err < 0) {
     throw std::system_error(-err, std::system_category(), "bpf_set_link_xdp_fd");
   }
-  ::bpf_map *map = bpf_object__find_map_by_name(obj, "xsks_map");
+  ::bpf_map* map = bpf_object__find_map_by_name(obj, "xsks_map");
   int xsks_map = bpf_map__fd(map);
   if (xsks_map < 0) {
     throw std::system_error(-xsks_map, std::system_category(), "bpf_map__fd");
@@ -202,4 +202,3 @@ Reactor::run()
 }
 
 }
-
