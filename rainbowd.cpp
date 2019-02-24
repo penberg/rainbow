@@ -217,7 +217,7 @@ server()
   fill_ring.mask = fill_queue_size - 1;
 
   void* completion_ring_mmap = ::mmap(nullptr,
-                                      off.fr.desc + completion_queue_size * sizeof(uint64_t),
+                                      off.cr.desc + completion_queue_size * sizeof(uint64_t),
                                       PROT_READ | PROT_WRITE,
                                       MAP_SHARED | MAP_POPULATE,
                                       sockfd,
