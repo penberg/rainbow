@@ -1,3 +1,5 @@
+#include "rainbow/packet.h"
+
 #include <atomic>
 #include <cassert>
 #include <iostream>
@@ -22,6 +24,8 @@ extern "C" {
 #include <libbpf.h>
 }
 
+namespace rainbow {
+
 #ifndef AF_XDP
 #define AF_XDP 44
 #endif
@@ -45,32 +49,6 @@ struct xdp_ring
   uint32_t* consumer;
   uint32_t mask;
 };
-
-struct Packet
-{
-  const char* data;
-  size_t len;
-
-  Packet(const char* data, size_t len);
-
-  Packet trim_front(size_t size) const;
-};
-
-Packet::Packet(const char* data, size_t len)
-  : data{data}
-  , len{len}
-{
-}
-
-Packet
-Packet::trim_front(size_t nr) const
-{
-  auto offset = 0;
-  if (len >= nr) {
-    offset = nr;
-  }
-  return Packet{data + offset, len - offset};
-}
 
 using Error = std::string;
 
@@ -287,11 +265,13 @@ server()
   ::close(sockfd);
 }
 
+}
+
 int
 main()
 {
   try {
-    server();
+    rainbow::server();
   } catch (const std::exception& ex) {
     std::cerr << "error: " << ex.what() << std::endl;
   }
