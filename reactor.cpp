@@ -1,6 +1,6 @@
 #include "rainbow/reactor.hpp"
 
-#include "rainbow/packet.h"
+#include "rainbow/packet.hpp"
 
 #include <atomic>
 #include <iostream>

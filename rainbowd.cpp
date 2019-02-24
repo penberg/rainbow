@@ -1,4 +1,4 @@
-#include "rainbow/packet.h"
+#include "rainbow/packet.hpp"
 #include "rainbow/reactor.hpp"
 
 #include <arpa/inet.h>
