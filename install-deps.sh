@@ -1,3 +1,3 @@
 #!/bin/sh
 
-dnf install clang llvm
+dnf -y install make clang llvm gcc-c++ elfutils-devel
