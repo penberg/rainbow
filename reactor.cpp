@@ -44,6 +44,28 @@ Reactor::on_packet(OnPacketFn&& fn)
 }
 
 void
+Reactor::send(const Packet& packet)
+{
+  // FIXME: Pick TX buffer from _tx_bufs
+  char *tx_buf = reinterpret_cast<char*>(_bufs) + 1024; // FIXME: magic number -- upper half is for TX
+  std::copy_n(packet.data, packet.len, tx_buf); // FIXME: Eliminate copy by generating packet directly to "bufs"
+  ::xdp_desc desc;
+  desc.addr = reinterpret_cast<uint64_t>(tx_buf) - reinterpret_cast<uint64_t>(_bufs);
+  desc.len = packet.len;
+  _tx_ring.desc[(*_tx_ring.producer)++ & _tx_ring.mask] = desc; // FIXME: out of descriptors?
+  kick_tx();
+}
+
+void
+Reactor::kick_tx()
+{
+  int err = sendto(_sockfd, nullptr, 0, MSG_DONTWAIT, nullptr, 0);
+  if (err) {
+    throw std::system_error(errno, std::system_category(), "sendto()");
+  }
+}
+
+void
 Reactor::setup()
 {
   ::rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
@@ -149,6 +171,7 @@ Reactor::setup()
   for (uint64_t i = 0; i < uint64_t(nr_descs * frame_size); i += frame_size) {
     _fill_ring.desc[(*_fill_ring.producer)++ & _fill_ring.mask] = i;
   }
+  // TODO: fill _tx_bufs
   void* tx_map = ::mmap(nullptr,
                         off.rx.desc + nr_descs * sizeof(struct xdp_desc),
                         PROT_READ | PROT_WRITE,
@@ -170,10 +193,16 @@ Reactor::setup()
   if (err) {
     throw std::system_error(errno, std::system_category(), "bpf_map_update_elem()");
   }
+
   _rx_ring.producer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(rx_map) + off.rx.producer);
   _rx_ring.consumer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(rx_map) + off.rx.consumer);
   _rx_ring.desc = reinterpret_cast<struct xdp_desc*>(reinterpret_cast<uint64_t>(rx_map) + off.rx.desc);
   _rx_ring.mask = nr_descs - 1;
+
+  _tx_ring.producer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(tx_map) + off.tx.producer);
+  _tx_ring.consumer = reinterpret_cast<uint32_t*>(reinterpret_cast<uint64_t>(tx_map) + off.tx.consumer);
+  _tx_ring.desc = reinterpret_cast<struct xdp_desc*>(reinterpret_cast<uint64_t>(tx_map) + off.tx.desc);
+  _tx_ring.mask = nr_descs - 1;
 }
 
 void

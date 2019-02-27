@@ -35,17 +35,21 @@ class Reactor
   unsigned int _ifindex = 0;
   xdp_umem_ring _fill_ring = {};
   xdp_ring _rx_ring = {};
+  xdp_ring _tx_ring = {};
   void* _bufs = nullptr;
   int _sockfd = -1;
   OnPacketFn _fn;
+  std::vector<uint64_t> tx_bufs;
 
 public:
   ~Reactor();
   void on_packet(OnPacketFn&& fn);
   void setup();
+  void send(const Packet& packet);
   void run_once();
 
 private:
+  void kick_tx();
   void teardown();
 };
 
