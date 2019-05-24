@@ -9,6 +9,7 @@
 #include "expected.hpp"
 
 #include <iostream>
+#include <csignal>
 
 static tl::expected<void, rainbow::Error>
 process_message(const rainbow::Packet& packet)
@@ -75,13 +76,38 @@ process_packet(const rainbow::Packet& packet)
   }
 }
 
+static bool running = true;
+
+static void
+signal_handler(int, siginfo_t*, void*)
+{
+  running = false;
+}
+
+static void
+setup_signal(int signum)
+{
+  struct ::sigaction sa{};
+  sa.sa_sigaction = signal_handler;
+  sa.sa_flags = SA_SIGINFO;
+  auto err = sigaction(signum, &sa, nullptr);
+  if (err) {
+    throw std::system_error(errno, std::system_category());
+  }
+}
+
 int
 main()
 {
+  setup_signal(SIGINT);
+  setup_signal(SIGTERM);
   try {
     rainbow::Reactor reactor;
     reactor.on_packet(process_packet);
-    reactor.run();
+    reactor.setup();
+    while (running) {
+        reactor.run_once();
+    }
   } catch (const std::exception& ex) {
     std::cerr << "error: " << ex.what() << std::endl;
   }
