@@ -7,7 +7,9 @@ LIBBPF_PATH = $(LINUX_PATH)/tools/lib/bpf
 EBPF_PROGRAMS += rainbow_pass_kern.o
 EBPF_PROGRAMS += rainbow_kern.o
 
-EBPF_INCLUDES = -I$(LIBBPF_PATH)
+EBPF_INCLUDES += -I$(LIBBPF_PATH)
+# FIXME: Ubuntu and x86-64 specific include:
+EBPF_INCLUDES += -I/usr/include/x86_64-linux-gnu/
 
 PROGRAMS += rainbowd
 
