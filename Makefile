@@ -7,15 +7,17 @@ LIBBPF_PATH = $(LINUX_PATH)/tools/lib/bpf
 EBPF_PROGRAMS += rainbow_pass_kern.o
 EBPF_PROGRAMS += rainbow_kern.o
 
+EBPF_INCLUDES = -I$(LIBBPF_PATH)
+
 PROGRAMS += rainbowd
 
 all: $(EBPF_PROGRAMS) $(PROGRAMS)
 
 rainbow_pass_kern.o:
-	clang -I$(LIBBPF_PATH) -target bpf -c rainbow_pass_kern.c -o rainbow_pass_kern.o -O3
+	clang $(EBPF_INCLUDES) -target bpf -c rainbow_pass_kern.c -o rainbow_pass_kern.o -O3
 
 rainbow_kern.o:
-	clang -I$(LIBBPF_PATH) -target bpf -c rainbow_kern.c -o rainbow_kern.o -O3
+	clang $(EBPF_INCLUDES) -target bpf -c rainbow_kern.c -o rainbow_kern.o -O3
 
 rainbowd:
 	make -C $(LIBBPF_PATH) all
