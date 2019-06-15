@@ -27,3 +27,4 @@ rainbowd:
 
 clean:
 	rm -f $(EBPF_PROGRAMS) $(PROGRAMS)
+	make -C $(LIBBPF_PATH) clean
