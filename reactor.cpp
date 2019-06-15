@@ -10,6 +10,7 @@
 
 #include <net/if.h>
 #include <sys/mman.h>
+#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -45,6 +46,10 @@ Reactor::on_packet(OnPacketFn&& fn)
 void
 Reactor::setup()
 {
+  ::rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
+  if (setrlimit(RLIMIT_MEMLOCK, &rlim)) {
+    throw std::system_error(errno, std::system_category(), "setrlimit(RLIMIT_MEMLOCK)");
+  }
   int err;
   _ifindex = if_nametoindex("lo");
   ::bpf_prog_load_attr prog_load_attr = {
